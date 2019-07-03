@@ -1,0 +1,10 @@
+# The game contains a set of 16 tiles, each with a point value and up to 4 worms drawn on them. They all start out up for grabs in the middle of the table:
+The player who gathers the most worms wins.
+The point value on the tile shows how many points you need to roll with the dice in order to take that tile. There are 8 dice, and instead of a 6 they have a picture of a worm on them, which is worth 5:
+
+You repeatedly roll the dice, initially all 8 of them. After a roll, you can choose which “side” of the dice you want to keep, for example all fives, all threes or all worms. You set all these aside, and keep a running count of the number of points they’re worth, where a worm counts for 5 points. But that sum is only worth something if it contains at least one worm. You cannot take a side that you’ve already taken before.
+You then roll the remaining dice again, and continue in this way until you decide to quit. You cannot take a side which you already set aside before, so it might be wise to pass on a 5 in case you roll two 5s later.
+After taking some dice, you can decide whether to quit. When you quit, you can take a tile from the table worth at most the point value of the dice you have collected (again, as long as you have at least one worm). You put that tile on top of your stack; ordering is important here.
+You cannot quit after you’ve rolled, so if you end up unable to take any dice (e.g. you rolled 3 and 4, but you have already taken 3s and 4s), you lose that turn and have to return the top tile of your stack back to the table. (Additionally, the highest tile on the table gets turned over and is out of the game. This makes sure that the game will end at some point, but isn’t very important for the rest of this article.)
+Instead of taking a tile from the centre of the table, it’s also possible to steal other people’s tiles; more about that later.
+#kentekens
