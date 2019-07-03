@@ -7,4 +7,3 @@ You then roll the remaining dice again, and continue in this way until you decid
 After taking some dice, you can decide whether to quit. When you quit, you can take a tile from the table worth at most the point value of the dice you have collected (again, as long as you have at least one worm). You put that tile on top of your stack; ordering is important here.
 You cannot quit after you’ve rolled, so if you end up unable to take any dice (e.g. you rolled 3 and 4, but you have already taken 3s and 4s), you lose that turn and have to return the top tile of your stack back to the table. (Additionally, the highest tile on the table gets turned over and is out of the game. This makes sure that the game will end at some point, but isn’t very important for the rest of this article.)
 Instead of taking a tile from the centre of the table, it’s also possible to steal other people’s tiles; more about that later.
-#kentekens
