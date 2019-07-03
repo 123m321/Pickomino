@@ -1,11 +1,5 @@
 """
 
-threshold for each player : the chance of surving another throw of dice.
-if threshold is low (say 50%), the player accepts more risk not to survive.
-threshold of 60% means player would throw again if risk of ruin is less than
-40%
-
-
 Issue : make behaviour of players dependent on existing top of stack
 
 Player tactic 1 means auto_thief function
@@ -13,6 +7,7 @@ Player tactic 1 means auto_thief function
 """
 import random
 import pandas as pd
+import matplotlib.pyplot as plt
 
 number_of_dice = 8
 free_sides = [1, 2, 3, 4, 5, 'W']
@@ -24,22 +19,29 @@ TILES.append('X')
 throw_number = 1
 turn_number = 1
 winning = []
+turncol = ['playerID', 'fail', 'W_found', 'score', 'steal']
 win_tiles = []
-cols = ['winner', 'threshold']
-df = pd.DataFrame(columns=cols)
+df = pd.DataFrame(columns=turncol)
 playerID = 0
 overallWinners = []
 stay_in_turn = True
-#turncol = [playerID, fail, W_found, score]
-#turndict = []
+
+turndict = {}
+
+
+class gameplay:
+    def __init__(self):
+        pass
+    
+    
+        
 
 class player:
-    def __init__(self, playername, threshold):
+    def __init__(self, playername):
         self.name = playername
         self.human = False
         self.own_tiles = []
         self.tactic = 0
-        self.threshold = threshold
 
     def throw_dice(self, number_of_dice):
         self.thrown_dice = []
@@ -69,6 +71,7 @@ class player:
         mx = max(mx_pick)
         mx_index = mx_pick.index(mx)
         print(f'{players[playerID].name} picks {possible_sides[mx_index]} (score now {score + mx})')
+#        players[playerID].think_one_step_ahead(free_sides, score)
         return possible_sides[mx_index]
 
     def auto_thief(self, hand, possible_sides, stealList):
@@ -92,10 +95,55 @@ class player:
         if not found_the_W(free_sides):
             steal_opp = False
         if not steal_opp:
-            mx = max(mx_pick)
-            mx_index = mx_pick.index(mx)
+            pick_one = players[playerID].think_one_step_ahead(hand, possible_sides)
+#            mx = max(mx_pick)
+#            mx_index = mx_pick.index(mx)
+            return pick_one
         print(f'{players[playerID].name} picks {possible_sides[mx_index]}, score now {score+mx}')
         return possible_sides[mx_index]
+
+    def think_one_step_ahead(self, hand, possible_sides):
+        current_worms = worms_quantity(score)
+        mx_pick = []
+        for pos_sides in possible_sides:
+            mx_pick.append(hand[pos_sides] * pos_sides)
+        if isinstance(mx_pick[-1], str):
+            worms = mx_pick[-1].count('W')
+            del mx_pick[-1]
+            mx_pick.append(worms * 5)
+        free_sides2 = free_sides[:]
+        bothsteps = []
+        for t in possible_sides:           
+            step1score = mx_pick[possible_sides.index(t)] + score
+            free_sides2.remove(t)
+            dice_left = new_nr_of_dice(hand, t)
+            free_sides2_sum = free_sides_sum(free_sides2)
+            step2score = dice_left * (free_sides2_sum / 6)
+            free_sides2.append(t)
+#            print (f'Sum both steps = {step1score + step2score}')
+            bothsteps.append(step1score + step2score)
+        maxstep = max(bothsteps)
+#        print(bothsteps)
+#        print(f'Advice is {possible_sides[bothsteps.index(maxstep)]}')
+        mx = max(mx_pick)
+        mx_index = mx_pick.index(mx)
+#        print(f'{players[playerID].name} picks {possible_sides[mx_index]} (score now {score + mx})')
+        print(f'{players[playerID].name} picks {possible_sides[bothsteps.index(maxstep)]} (score now {score + mx})')
+        if possible_sides[mx_index] != possible_sides[bothsteps.index(maxstep)]:
+            print('alarm')
+        return possible_sides[bothsteps.index(maxstep)]
+
+def free_sides_sum(free):
+    if 'W' in free:
+        free.remove('W')
+        free.append(5.01)
+        sum_free = sum(free)
+        del free[-1]
+        free.append('W')
+    else:
+        sum_free= sum(free)
+    return sum_free
+
 
 
 def add_human():
@@ -183,6 +231,35 @@ def survival_rate(free_sides, dice_left):
     allsixsides = 6 ** dice_left
     deadrate = notfreepower / allsixsides
     return int(100 * (1 - deadrate))
+
+
+def worms_quantity(nr):
+    if nr < 21:
+        return 0
+    if 25 > nr > 20:
+        return 1
+    if 29 > nr > 24:
+        return 2
+    if 33 > nr > 28:
+        return 3
+    if nr > 32:
+        return 4
+
+
+def pay_off_worms(free_sides, dice_left, score):
+    avg = int(dice_left) * int(sum(free_sides) / 6)
+    top_of_stack = 0
+    if players[playerID].own_tiles:
+        top_of_stack = players[playerID].own_tiles[-1]
+    print(f'now {players[playerID].name} would win {worms_quantity(score)} worms')
+    extra_worms = worms_quantity(score+avg) - worms_quantity(score)
+    print(f'if he throws again he expects to gain {extra_worms} extra worms')
+    print(f'but if he loses, he loses {worms_quantity(top_of_stack)} worms')
+
+    extra_worms_odds = (survival_rate(free_sides, dice_left) / 100) * extra_worms
+    lose_worms_odds = worms_quantity(top_of_stack) * 0.01 * (1 - survival_rate(free_sides, dice_left)) 
+    print(f'sum is {extra_worms_odds + lose_worms_odds}')
+    return (extra_worms_odds + lose_worms_odds)
 
 
 def new_nr_of_dice(hand, pick):
@@ -289,8 +366,8 @@ def most_worms(players):
     for playerID in players:
         ownWorms = []
         for tile in playerID.own_tiles:
-            spot = TILESoriginal.index(tile)
-            ownWorms.append(WORMS[spot])
+            spot = worms_quantity(tile)
+            ownWorms.append(spot)
         print(f'Worms {playerID.name} = {sum(ownWorms)}')
         total_worms.append(sum(ownWorms))
     winner = (total_worms.index(max(total_worms)))
@@ -317,32 +394,43 @@ def steal_possible(score, stealList):
     return False
 
 
+def strategy_thief():
+    if steal_possible(score, stealList):
+        print ('going to steal!')
+        return False
+    else:
+        exp_result = pay_off_worms(free_sides, number_of_dice, score)
+        if exp_result > 0:
+            return True
+        return False
+
+
 if __name__ == "__main__":
-    albert = player('Albert', 76)
-    boris = player('Boris', 76)
-    chris = player('Chris', 76)
+    albert = player('Albert')
+    boris = player('Boris')
+    chris = player('Chris')
     albert.tactic = 1
+    boris.tactic = 2
     print('Rules. Try to win most worms. Tiles on table have worms, 21 - 24 have 1 worm')
     print('25-28 2 worms, 29 - 32 : 3 worms and higher 4 worms.\n')
-    print('Start with 8 dice, you need to pick a side to keep it apart.\n You need a worm too (worth 5 points)')
+    print('Start with 8 dice, you need to pick a side to keep it apart.\nYou need a worm too (worth 5 points)')
     print('you can steal from other players, or grab from table. If you die, you lose top of your stack')
     print('Check https://frozenfractal.com/blog/2015/5/3/how-to-win-at-pickomino/ for more details')
     players = [albert, boris, chris]
     stealList = create_stealList(players)
     number_of_games = int(input(f'Number of games? (For auto players analysis) '))
     add_human()
-
+#    number_of_games = 100
     for i in range(0, number_of_games):
         playerID = random.randint(0, 2)  # random start of player
         i += 1
         for singleplayers in players:
             singleplayers.own_tiles = []
         stealList = create_stealList(players)  # rest stealList
-        while check_first_tiles_int(TILES):  # the main loop of the game
-    
+        while check_first_tiles_int(TILES):  # the main loop of the game    
             while True:  # the loop of throwing dice and picking numbers
                 fail = False  # at start of throwing, there is no fail yet
-                THRESHOLD = players[playerID].threshold
+
                 #  dice are thrown here for first time
                 thrown = players[playerID].throw_dice(number_of_dice)
                 hand = players[playerID].orden_dices_in_dict(thrown)
@@ -352,8 +440,10 @@ if __name__ == "__main__":
                 if possible_sides:
                     # dice are thrown, and able to pick a number (or R)
                     if not players[playerID].human:
-                        if players[playerID].tactic:
+                        if players[playerID].tactic == 1:
                             pick_one = players[playerID].auto_thief(hand, possible_sides, stealList)
+                        elif players[playerID].tactic == 2:
+                            pick_one = players[playerID].think_one_step_ahead(hand, possible_sides)
                         else:   
                             pick_one = players[playerID].auto_mx_point(hand, possible_sides)  # max pick
                         free_sides.remove(pick_one)
@@ -399,26 +489,7 @@ if __name__ == "__main__":
                     min_tiles_list = min_tiles_calc(TILES)
                     if score_high(score, min_tiles_list[0]) or steal_possible(score, stealList):
                         if not players[playerID].human:
-                            if players[playerID].tactic:
-                                if steal_possible(score, stealList):
-                                    print ('going to steal!')
-                                    stay_in_turn = False
-                                else:
-                                    if survival_rate(free_sides, number_of_dice) > THRESHOLD:
-                                        print (f'surv = {survival_rate(free_sides, number_of_dice)}, thres = {THRESHOLD}' )
-                                        if score >=  max_tiles_calc(TILES):
-                                            print('can play again, but for what?')
-                                            stay_in_turn = False
-                                            
-                                        stay_in_turn = True
-                                    else:
-                                        stay_in_turn = False
-                            elif survival_rate(free_sides, number_of_dice) > THRESHOLD:
-                                    stay_in_turn = True
-                            else:
-    #                            #print(f'{survival_rate(free_sides, number_of_dice)} is less than {THRESHOLD}')
-                                stay_in_turn = False
-    
+                            stay_in_turn = strategy_thief()    
                         else:
                             # keep rolling or stop for humans
                             stay_in_turn = stop_rolling_again_question()
@@ -431,53 +502,68 @@ if __name__ == "__main__":
                 continue
     
     # here doing the stuff after finishing the turn
+            steal = False
             if not fail:
                 if steal_possible(score, stealList):
                     print(f'succesful steal {score} from {players[stealList.index(score)].name}\n')
-                    # ready to steal
-                    # remove at other player
+                    steal = True
                     players[stealList.index(score)].own_tiles.remove(score)
-                    # add at current player
-                    players[playerID].own_tiles.append(score)
-    
+                    players[playerID].own_tiles.append(score)   
                 else:
                     tilenr = find_tile(TILES, score)
                     TILES.remove(tilenr)
                     players[playerID].own_tiles.append(tilenr)
                     update_stealList(players, stealList)
                     print(f'{players[playerID].name} added {tilenr} on top of his stack\n')
+                    
             else:
                 print(f'{players[playerID].name} died.\n')
-                #print(f'fail, because {score} is too low or no R : {not(found_the_W(free_sides))}')
                 TILES = remove_last_tile(TILES)
                 if players[playerID].own_tiles:
                     tileback = players[playerID].own_tiles.pop(-1)
                     TILES = give_back_tile(tileback, TILES)
                     update_stealList(players, stealList)
     
-            number_of_dice, free_sides, score = reset_vars()
+
             print(f'Tiles on the table : {TILES}')
             for each_player in players:
                 print(f'{each_player.name} : {each_player.own_tiles}')
-    #        #print(players[playerID].name, TILES, players[playerID].own_tiles)
             stay_in_turn = True
-    #        #print(f'player = {players[playerID].name}')
-            print('\n')
+#            print('\n')
             if players[playerID].human:
                 waiting_a_moment = input('<press any key>')
+            stealList = update_stealList(players, stealList)
+#            Fill turn df
+            if fail:
+                score = 0
+            turndict = {turncol[0] : players[playerID].name, turncol[1] : fail, turncol[2] : rfound,
+                        turncol[3] : worms_quantity(score), turncol[4] : steal}
+            df = df.append(turndict, ignore_index = True)
             playerID = next_player(players, playerID)
             print(f'Next player will be {players[playerID].name} and his tiles \
 are {players[playerID].own_tiles}')
-            stealList = update_stealList(players, stealList)
-    #        print(f'steal list is now {stealList}')
-        overallWinners.append(most_worms(players))
-    
-    #   fill df with results
-    #    dfdict = {cols[0] : (albert.own_tiles > boris.own_tiles), cols[1] : (boris.own_tiles > albert.own_tiles), 'throw_number' : throw_number,\
-    #              'turn_number' : turn_number, 'threshold' : THRESHOLD}
-    #    df = df.append(dfdict, ignore_index = True)
-    #    dfdict = {}
-    
+            number_of_dice, free_sides, score = reset_vars()
+                        
+        overallWinners.append(most_worms(players))    
         TILES, players[playerID].own_tiles, throw_number, turn_number, winnaar = reset_tiles(playerID)
         winner_count(overallWinners, players)
         print('\n\n')
+        bool_col =  ['W_found', 'fail', 'steal']
+        for bc in bool_col:
+            df[bc] = df[bc].astype(bool)
+        df.score = df.score.astype(int)
+    df2 = df.groupby('playerID').mean()
+    print(df2)
+    fig, ax = plt.subplots(3,1)
+    #ax.plot(df2.index, df2['score'])
+    ax[0].bar(df2.index, df2.steal)
+    ax[0].set_ylabel('steal')
+    ax[1].bar(df2.index, df2.fail)
+    ax[1].set_ylabel('fail')
+    ax[2].bar(df2.index, df2.score)
+    ax[2].set_ylabel('score')
+    
+    
+    ax[2].set_xlabel('player')
+
+    plt.show()
